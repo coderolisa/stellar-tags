@@ -427,6 +427,57 @@
   transform: translateY(-1px);
   box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
   border-color: rgba(31, 124, 255, 0.35);
+  color: #ffffff;
+}
+
+.help-action-panel {
+  width: min(760px, 100%);
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+
+.help-action-panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.help-action-content {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  text-align: left;
+  color: #1e293b;
+}
+
+.help-action-content p {
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.help-action-content p:last-child {
+  margin-bottom: 0;
+}
+
+.help-action-block {
+  margin: 12px 0;
+}
+
+.help-action-block ol {
+  margin: 8px 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.help-action-note {
+  font-size: 13px;
+  color: #475569;
 }
 
 .help-status {

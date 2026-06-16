@@ -484,19 +484,23 @@ function Dashboard({
       displayMessage('Simulating smart contract execution...', '#1F2937', '#F3F4F6')
 
       const StellarSdk = await loadStellarSdk()
+      
+      // FIX 1: Wrap math in BigInt and convert to string for bulletproof i128 encoding
+      const amountInStroops = BigInt(Math.floor(amountValue * 10000000)).toString()
+
       const contractArgs = [
         StellarSdk.nativeToScVal(userPublicKey, { type: 'address' }),
         StellarSdk.nativeToScVal(recipientAddress, { type: 'address' }),
         StellarSdk.nativeToScVal(TREASURY_ADDRESS, { type: 'address' }),
         StellarSdk.nativeToScVal(TOKEN_ADDRESS, { type: 'address' }),
-        StellarSdk.nativeToScVal(BigInt(Math.floor(amountValue * 10000000)), { type: 'i128' }),
+        StellarSdk.nativeToScVal(amountInStroops, { type: 'i128' }),
       ]
 
       const server = new StellarSdk.rpc.Server('https://soroban-testnet.stellar.org')
       const account = await server.getAccount(userPublicKey)
 
-      // 2. Use the built-in Contract helper instead of manual XDR construction
-      const contract = new StellarSdk.Contract(CONTRACT_ID);
+      // FIX 2: Use modern Contract class instead of manual XDR trees
+      const contract = new StellarSdk.Contract(CONTRACT_ID)
 
       const transaction = new StellarSdk.TransactionBuilder(account, {
         fee: '100000',
@@ -523,22 +527,36 @@ function Dashboard({
 
       displayMessage('Submitting to Stellar Testnet...', '#D97706', '#FEF3C7')
 
-      const finalXdr = signedXdr.signedTxXdr || signedXdr
-      const freighterTx = StellarSdk.TransactionBuilder.fromXDR(
-        finalXdr,
-        'Test SDF Network ; September 2015',
-      )
-      preparedTransaction.signatures.length = 0
-      freighterTx.signatures.forEach((sig) => preparedTransaction.signatures.push(sig))
+      const finalXdr = typeof signedXdr === 'string' ? signedXdr : signedXdr.signedTxXdr || signedXdr
 
-      const result = await server.sendTransaction(preparedTransaction)
-      if (result.status === 'PENDING' || result.status === 'SUCCESS') {
+      // FIX 3: Bypass TransactionBuilder.fromXDR entirely! 
+      // This prevents the 'Bad union switch' error when Freighter and the SDK disagree.
+      // We send the raw base64 string directly to the Soroban RPC instead.
+      const rpcResponse = await fetch('https://soroban-testnet.stellar.org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'sendTransaction',
+          params: { transaction: finalXdr }
+        })
+      })
+
+      const rpcData = await rpcResponse.json()
+      
+      if (rpcData.error) {
+        throw new Error(`RPC Error: ${rpcData.error.message}`)
+      }
+
+      const status = rpcData.result?.status
+      if (status === 'PENDING' || status === 'SUCCESS') {
         displayMessage('Payment successful!', '#059669', '#D1FAE5')
         setAmount('')
         onRefreshBalance()
         window.dispatchEvent(new Event('stellar:tx-update'))
       } else {
-        throw new Error(`Blockchain rejected transaction: ${result.status}`)
+        throw new Error(`Blockchain rejected transaction: ${status || 'Unknown'}`)
       }
     } catch (error) {
       displayMessage(error.message || 'A network error occurred.', '#DC2626', '#FEE2E2')

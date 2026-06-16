@@ -489,28 +489,20 @@ function Dashboard({
         StellarSdk.nativeToScVal(recipientAddress, { type: 'address' }),
         StellarSdk.nativeToScVal(TREASURY_ADDRESS, { type: 'address' }),
         StellarSdk.nativeToScVal(TOKEN_ADDRESS, { type: 'address' }),
-        StellarSdk.nativeToScVal(Math.floor(amountValue * 10000000), { type: 'i128' }),
+        StellarSdk.nativeToScVal(BigInt(Math.floor(amountValue * 10000000)), { type: 'i128' }),
       ]
 
       const server = new StellarSdk.rpc.Server('https://soroban-testnet.stellar.org')
       const account = await server.getAccount(userPublicKey)
 
+      // 2. Use the built-in Contract helper instead of manual XDR construction
+      const contract = new StellarSdk.Contract(CONTRACT_ID);
+
       const transaction = new StellarSdk.TransactionBuilder(account, {
         fee: '100000',
         networkPassphrase: 'Test SDF Network ; September 2015',
       })
-        .addOperation(
-          StellarSdk.Operation.invokeHostFunction({
-            func: new StellarSdk.xdr.HostFunction.hostFunctionTypeInvokeContract(
-              new StellarSdk.xdr.InvokeContractArgs({
-                contractAddress: StellarSdk.Address.fromString(CONTRACT_ID).toScAddress(),
-                functionName: 'route_payment',
-                args: contractArgs,
-              }),
-            ),
-            auth: [],
-          }),
-        )
+        .addOperation(contract.call('route_payment', ...contractArgs))
         .setTimeout(300)
         .build()
 

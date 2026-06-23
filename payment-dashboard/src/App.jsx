@@ -148,13 +148,7 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [balanceError, setBalanceError] = useState('')
 
-  const loadBalance = useCallback(async () => {
-    if (!userPublicKey) {
-      setBalance(null)
-      setBalanceError('')
-      return
-    }
-
+  const loadBalance = async () => {
     setIsRefreshing(true)
     setBalanceError('')
     try {
@@ -176,9 +170,12 @@ function App() {
   }, [userPublicKey])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadBalance()
-  }, [loadBalance])
+    if (!userPublicKey) {
+      return
+    }
+    const run = async () => { await loadBalance() }
+    run()
+  }, [userPublicKey])
 
   useEffect(() => {
     const syncView = () => {
@@ -384,11 +381,7 @@ function Dashboard({
 
   useEffect(() => {
     if (!userPublicKey) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setReceiveAddress('')
-      setReceiveTag('')
-      displayReceiveMessage('Connect your wallet to reveal your receive details.', '#1F2937', '#F3F4F6')
-      onRegistrationStateChange('unknown')
+      Promise.resolve().then(() => onRegistrationStateChange('unknown'))
       return
     }
 
@@ -1402,11 +1395,10 @@ function HistoryPage({
 
   const loadHistory = useCallback(async (signal) => {
     if (!userPublicKey) {
-      setHistory([])
-      setHistoryError('')
       return
     }
 
+    await Promise.resolve()
     setIsLoading(true)
     setHistoryError('')
     try {
@@ -1516,8 +1508,8 @@ function HistoryPage({
 
   useEffect(() => {
     const controller = new AbortController()
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadHistory(controller.signal)
+    const run = async () => { await loadHistory(controller.signal) }
+    run()
     return () => controller.abort()
   }, [loadHistory, refreshIndex, userPublicKey])
 

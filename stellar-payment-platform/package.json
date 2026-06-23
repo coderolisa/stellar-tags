@@ -5,12 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "listener": "node horizonListener.js"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^16.0.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "sqlite3": "^5.1.7",
-    "zod": "^3.24.4"
+    "generic-pool": "^3.9.0",
+    "sqlite3": "^5.1.7"
   }
 }

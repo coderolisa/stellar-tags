@@ -6,6 +6,7 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const { scheduleCleanupJob } = require('./src/cleanup-cron');
 const dotenv = require('dotenv');
+const xss = require('xss');
 
 dotenv.config();
 
@@ -237,7 +238,7 @@ app.get('/federation', etagCache, async (req, res, next) => {
       stellar_address: address,
       account_id: address,
       memo_type: 'text',
-      memo: 'PlatformPayment',
+      memo: xss('PlatformPayment'),
     });
   } catch (err) {
     const dbError = new Error('Database lookup failed');
@@ -247,8 +248,8 @@ app.get('/federation', etagCache, async (req, res, next) => {
 });
 
 app.post('/register', async (req, res, next) => {
-  const username = normalizeNameTag(req.body.username);
-  const address = typeof req.body.address === 'string' ? req.body.address.trim() : '';
+  const username = normalizeNameTag(xss(req.body.username));
+  const address = typeof req.body.address === 'string' ? xss(req.body.address.trim()) : '';
 
   if (!username || !address) {
     const error = new Error('username and address are required');

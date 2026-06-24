@@ -477,23 +477,23 @@ function Dashboard({
     setIsNavOpen(false);
   };
   const handleNav = (action) => {
-    sessionStorage.setItem(NAV_STORAGE_KEY, "false");
-    setIsNavOpen(false);
-    action();
-  };
-  const [nameTag, setNameTag] = useState("");
-  const debouncedNameTag = useDebounce(nameTag, 300);
-  const [amount, setAmount] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isReceiving, setIsReceiving] = useState(false);
-  const [activeBalancePanel, setActiveBalancePanel] = useState("");
-  const [receiveAddress, setReceiveAddress] = useState("");
-  const [receiveTag, setReceiveTag] = useState("");
+    sessionStorage.setItem(NAV_STORAGE_KEY, 'false')
+    setIsNavOpen(false)
+    action()
+  }
+  const [nameTag, setNameTag] = useState('')
+  const debouncedNameTag = useDebounce(nameTag, 300)
+  const [amount, setAmount] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [isReceiving, setIsReceiving] = useState(false)
+  const [activeBalancePanel, setActiveBalancePanel] = useState('')
+  const [receiveAddress, setReceiveAddress] = useState('')
+  const [receiveTag, setReceiveTag] = useState('')
   const [receiveStatus, setReceiveStatus] = useState({
-    text: "",
-    color: "#1F2937",
-    bgColor: "#F3F4F6",
-  });
+    text: '',
+    color: '#1F2937',
+    bgColor: '#F3F4F6',
+  })
   const [status, setStatus] = useState({
     text: "",
     color: "#1F2937",
@@ -560,18 +560,12 @@ function Dashboard({
           return;
         }
 
-        throw new Error(
-          (data && data.detail) || `Backend error (${response.status}).`,
-        );
-      } catch (error) {
-        setReceiveAddress(userPublicKey);
-        setReceiveTag("");
-        displayReceiveMessage(
-          error.message || "Unable to load receive details.",
-          "#DC2626",
-          "#FEE2E2",
-        );
-        onRegistrationStateChange("unknown");
+        throw new Error((data && data.detail) || `Backend error (${response.status}).`)
+      } catch (error){
+        setReceiveAddress(userPublicKey)
+        setReceiveTag('')
+        displayReceiveMessage(error.message || 'Unable to load receive details.', '#DC2626', '#FEE2E2')
+        onRegistrationStateChange('unknown')
       } finally {
         setIsReceiving(false);
       }
@@ -605,7 +599,7 @@ function Dashboard({
             return;
           }
         }
-      } catch (error) {
+      } catch  {
         // Silently fail on search errors during typing
       }
     };

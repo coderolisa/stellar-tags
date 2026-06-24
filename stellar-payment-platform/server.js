@@ -265,13 +265,16 @@ app.get('/federation', etagCache, async (req, res, next) => {
     return next(error);
   }
 
+  // Convert to lowercase for case-insensitive lookup
+  const queryName = nameTag.toLowerCase();
+
   try {
     const row = await poolGet(
       'SELECT address FROM username_registry WHERE username = ?',
-      [nameTag],
+      [queryName],
     );
 
-    const address = row?.address || USER_DATABASE[nameTag];
+    const address = row?.address || USER_DATABASE[queryName];
     if (!address) {
       const notFoundError = new Error('Name tag not found');
       notFoundError.statusCode = 404;
@@ -308,6 +311,9 @@ app.post('/register', async (req, res, next) => {
     return next(error);
   }
 
+  // Convert to lowercase for case-insensitive storage
+  const normalizedUsername = username.toLowerCase();
+
   try {
     const row = await poolGet(
       'SELECT username FROM username_registry WHERE address = ?',
@@ -322,10 +328,10 @@ app.post('/register', async (req, res, next) => {
 
     await poolRun(
       'INSERT INTO username_registry (username, address, created_at) VALUES (?, ?, ?)',
-      [username, address, new Date().toISOString()],
+      [normalizedUsername, address, new Date().toISOString()],
     );
 
-    return res.status(201).json({ ok: true, username, address, federation_address: `${username}*${process.env.DOMAIN || 'localhost'}` });
+    return res.status(201).json({ ok: true, username: normalizedUsername, address, federation_address: `${normalizedUsername}*${process.env.DOMAIN || 'localhost'}` });
   } catch (error) {
     if (error.message && error.message.includes('UNIQUE')) {
       const conflictError = new Error('Username already registered');

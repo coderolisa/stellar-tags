@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import freighterApi from '@stellar/freighter-api'
+import { useDebounce } from './useDebounce'
 
 const CONTRACT_ID = 'CDNQ7OMHIFOLZHOKWQLOGDW7CF3DRMKXJC6OULNGNBWF4O4NO2NEIGER'
 const TREASURY_ADDRESS = 'GAAFWEZKDYPXLTQGKQ3F23TXWYQUDAYTDW7P7VUQSVJFW2GWC4Y6LWST'
@@ -206,7 +207,7 @@ function App() {
     }
     const run = async () => { await loadBalance() }
     run()
-  }, [loadBalance, userPublicKey])
+n
 
   useEffect(() => {
     const syncView = () => {
@@ -239,17 +240,7 @@ function App() {
     return () => window.removeEventListener('hashchange', syncView)
   }, [])
 
-  const handleSessionTimeout = useCallback(() => {
-    setUserPublicKey('')
-    setRegistrationState('unknown')
-    setBalance(null)
-    setBalanceError('')
-    sessionStorage.removeItem('stellar-last-tx')
-  }, [])
 
-  useSessionMonitor(handleSessionTimeout)
-
-  const handleNavigate = (view) => {
     setActiveView(view)
     if (view === 'register') {
       window.location.hash = 'register'
@@ -272,9 +263,9 @@ function App() {
     }
 
     window.location.hash = ''
-  }
+  }, [])
 
-  const handleRegistrationStateChange = (nextState) => {
+  const handleRegistrationStateChange = useCallback((nextState) => {
     setRegistrationState(nextState)
 
     if (nextState === 'new') {
@@ -284,7 +275,7 @@ function App() {
     if (nextState === 'existing' && activeView === 'register') {
       handleNavigate('dashboard')
     }
-  }
+  }, [activeView, handleNavigate])
 
   if (activeView === 'register' && registrationState === 'new') {
     return (
@@ -347,7 +338,6 @@ function App() {
   return (
     <Dashboard
       userPublicKey={userPublicKey}
-      setUserPublicKey={setUserPublicKey}
       onConnectWallet={handleConnectWallet}
       onDisconnectWallet={handleDisconnectWallet}
       balance={balance}
@@ -391,12 +381,14 @@ function Dashboard({
     action()
   }
   const [nameTag, setNameTag] = useState('')
+  const debouncedNameTag = useDebounce(nameTag, 300)
   const [amount, setAmount] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isReceiving, setIsReceiving] = useState(false)
   const [activeBalancePanel, setActiveBalancePanel] = useState('')
   const [receiveAddress, setReceiveAddress] = useState('')
   const [receiveTag, setReceiveTag] = useState('')
+
   const [status, setStatus] = useState({
     text: '',
     color: '#1F2937',
@@ -455,6 +447,7 @@ function Dashboard({
 
     loadReceiveDetails()
   }, [userPublicKey, onRegistrationStateChange])
+
 
   const handleConnect = async () => {
     const result = await onConnectWallet()
@@ -589,9 +582,7 @@ function Dashboard({
 
     try {
       await navigator.clipboard.writeText(value)
-      displayMessage(`${label} copied to clipboard.`, '#059669', '#D1FAE5')
-    } catch {
-      displayMessage('Copy failed. Please copy manually.', '#DC2626', '#FEE2E2')
+
     }
   }
 

@@ -12,6 +12,7 @@ dotenv.config();
 const genericPool = require('generic-pool');
 
 const app = express();
+app.set('query parser', 'simple');
 const PORT = process.env.PORT || 5000;
 const STELLAR_TAG_DOMAIN = process.env.STELLAR_TAG_DOMAIN;
 

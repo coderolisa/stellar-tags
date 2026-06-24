@@ -11,6 +11,7 @@ const ANALYTICS_WINDOW_MS = 60 * 60 * 1000
 const ANALYTICS_PAGE_LIMIT = 200
 const ANALYTICS_MAX_PAGES = 5
 const ANALYTICS_REFRESH_MS = 60 * 1000
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000
 
 let stellarSdkPromise
 const loadStellarSdk = () => {
@@ -118,6 +119,36 @@ const useWalletMenu = () => {
   return { menuRef, isOpen, setIsOpen }
 }
 
+const useSessionMonitor = (onTimeout) => {
+  const timerRef = useRef(null)
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+    timerRef.current = setTimeout(onTimeout, SESSION_TIMEOUT_MS)
+  }, [onTimeout])
+
+  useEffect(() => {
+    const handleActivity = () => {
+      resetTimer()
+    }
+
+    resetTimer()
+
+    document.addEventListener('mousedown', handleActivity)
+    document.addEventListener('keydown', handleActivity)
+
+    return () => {
+      clearTimeout(timerRef.current)
+      document.removeEventListener('mousedown', handleActivity)
+      document.removeEventListener('keydown', handleActivity)
+    }
+  }, [resetTimer])
+
+  return resetTimer
+}
+
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [userPublicKey, setUserPublicKey] = useState('')
@@ -148,7 +179,7 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [balanceError, setBalanceError] = useState('')
 
-  const loadBalance = async () => {
+  const loadBalance = useCallback(async () => {
     setIsRefreshing(true)
     setBalanceError('')
     try {
@@ -167,7 +198,7 @@ function App() {
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [userPublicKey])
 
   useEffect(() => {
     if (!userPublicKey) {
@@ -175,7 +206,7 @@ function App() {
     }
     const run = async () => { await loadBalance() }
     run()
-  }, [userPublicKey])
+  }, [loadBalance, userPublicKey])
 
   useEffect(() => {
     const syncView = () => {
@@ -207,6 +238,16 @@ function App() {
     window.addEventListener('hashchange', syncView)
     return () => window.removeEventListener('hashchange', syncView)
   }, [])
+
+  const handleSessionTimeout = useCallback(() => {
+    setUserPublicKey('')
+    setRegistrationState('unknown')
+    setBalance(null)
+    setBalanceError('')
+    sessionStorage.removeItem('stellar-last-tx')
+  }, [])
+
+  useSessionMonitor(handleSessionTimeout)
 
   const handleNavigate = (view) => {
     setActiveView(view)
@@ -325,7 +366,6 @@ function App() {
 
 function Dashboard({
   userPublicKey,
-  setUserPublicKey,
   onConnectWallet,
   onDisconnectWallet,
   balance,
@@ -357,11 +397,6 @@ function Dashboard({
   const [activeBalancePanel, setActiveBalancePanel] = useState('')
   const [receiveAddress, setReceiveAddress] = useState('')
   const [receiveTag, setReceiveTag] = useState('')
-  const [receiveStatus, setReceiveStatus] = useState({
-    text: '',
-    color: '#1F2937',
-    bgColor: '#F3F4F6',
-  })
   const [status, setStatus] = useState({
     text: '',
     color: '#1F2937',
@@ -376,10 +411,6 @@ function Dashboard({
     setStatus({ text, color, bgColor })
   }
 
-  const displayReceiveMessage = (text, color, bgColor) => {
-    setReceiveStatus({ text, color, bgColor })
-  }
-
   useEffect(() => {
     if (!userPublicKey) {
       Promise.resolve().then(() => onRegistrationStateChange('unknown'))
@@ -388,7 +419,7 @@ function Dashboard({
 
     const loadReceiveDetails = async () => {
       setIsReceiving(true)
-      displayReceiveMessage('Loading your receive details...', '#1F2937', '#F3F4F6')
+      displayMessage('Loading your receive details...', '#1F2937', '#F3F4F6')
 
       try {
         const response = await fetch(`${API_BASE}/lookup?address=${encodeURIComponent(userPublicKey)}`)
@@ -398,7 +429,7 @@ function Dashboard({
         if (response.ok && data) {
           setReceiveAddress(data.address)
           setReceiveTag(data.username)
-          displayReceiveMessage('Share your username or wallet address.', '#059669', '#D1FAE5')
+          displayMessage('Share your username or wallet address.', '#059669', '#D1FAE5')
           onRegistrationStateChange('existing')
           return
         }
@@ -406,7 +437,7 @@ function Dashboard({
         if (response.status === 404) {
           setReceiveAddress(userPublicKey)
           setReceiveTag('')
-          displayReceiveMessage('No username found. Register to claim one.', '#D97706', '#FEF3C7')
+          displayMessage('No username found. Register to claim one.', '#D97706', '#FEF3C7')
           onRegistrationStateChange('new')
           return
         }
@@ -415,7 +446,7 @@ function Dashboard({
       } catch (error) {
         setReceiveAddress(userPublicKey)
         setReceiveTag('')
-        displayReceiveMessage(error.message || 'Unable to load receive details.', '#DC2626', '#FEE2E2')
+        displayMessage(error.message || 'Unable to load receive details.', '#DC2626', '#FEE2E2')
         onRegistrationStateChange('unknown')
       } finally {
         setIsReceiving(false)
@@ -423,7 +454,7 @@ function Dashboard({
     }
 
     loadReceiveDetails()
-  }, [userPublicKey])
+  }, [userPublicKey, onRegistrationStateChange])
 
   const handleConnect = async () => {
     const result = await onConnectWallet()
@@ -493,7 +524,7 @@ function Dashboard({
            throw new Error(preparedTransaction.error.message || 'Simulation rejected by network.')
          }
       } catch (err) {
-         throw new Error(`Simulation failed: ${err.message}`)
+         throw new Error(`Simulation failed: ${err.message}`, { cause: err })
       }
 
       // --- PHASE 4: WALLET SIGNATURE ---
@@ -506,7 +537,7 @@ function Dashboard({
         })
         if (signedXdrResponse.error) throw new Error(signedXdrResponse.error)
       } catch (err) {
-        throw new Error(`Wallet signature failed: ${err.message}`)
+        throw new Error(`Wallet signature failed: ${err.message}`, { cause: err })
       }
 
       // --- PHASE 5: BLOCKCHAIN SUBMISSION ---
@@ -540,7 +571,7 @@ function Dashboard({
           throw new Error(`Blockchain rejected transaction: ${status || 'Unknown'}`)
         }
       } catch (err) {
-        throw new Error(`Submission failed: ${err.message}`)
+        throw new Error(`Submission failed: ${err.message}`, { cause: err })
       }
 
     } catch (error) {
@@ -558,9 +589,9 @@ function Dashboard({
 
     try {
       await navigator.clipboard.writeText(value)
-      displayReceiveMessage(`${label} copied to clipboard.`, '#059669', '#D1FAE5')
-    } catch (error) {
-      displayReceiveMessage('Copy failed. Please copy manually.', '#DC2626', '#FEE2E2')
+      displayMessage(`${label} copied to clipboard.`, '#059669', '#D1FAE5')
+    } catch {
+      displayMessage('Copy failed. Please copy manually.', '#DC2626', '#FEE2E2')
     }
   }
 
@@ -1817,7 +1848,7 @@ function RegistrationPage({ userPublicKey, setUserPublicKey, onBack, onRegistere
         if (response.ok && data?.username) {
           onRegistered()
         }
-      } catch (error) {
+      } catch {
         // Ignore lookup errors in registration view.
       }
     }
@@ -1847,7 +1878,7 @@ function RegistrationPage({ userPublicKey, setUserPublicKey, onBack, onRegistere
 
       setUserPublicKey(response.address)
       setStatusMessage('Wallet connected. Pick your username.', 'success')
-    } catch (error) {
+    } catch {
       setStatusMessage('Unable to connect to Freighter.', 'error')
     } finally {
       setIsConnecting(false)

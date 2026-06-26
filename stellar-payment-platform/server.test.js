@@ -357,6 +357,30 @@ describe('POST /register — block secret keys', () => {
     });
   });
 
+  test('rejects registration if Content-Type header is not application/json', async () => {
+    const res = await request(app)
+      .post('/register')
+      .set('Content-Type', 'text/plain')
+      .send('username=alice&address=GBCDEFGHIJKLMNOPQRSTUVWXYZ');
+
+    expect(res.status).toBe(415);
+    expect(res.body).toEqual({
+      error: "Unsupported Media Type. Please send application/json"
+    });
+  });
+
+  test('rejects registration if Content-Type header is missing', async () => {
+    const res = await request(app)
+      .post('/register')
+      .unset('Content-Type')
+      .send('some-raw-payload');
+
+    expect(res.status).toBe(415);
+    expect(res.body).toEqual({
+      error: "Unsupported Media Type. Please send application/json"
+    });
+  });
+
   test('rejects 1-character local username payload', async () => {
     const res = await request(app)
       .post('/register')

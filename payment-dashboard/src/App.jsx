@@ -2225,7 +2225,7 @@ function MobileNav({
   );
 }
 
-const USERNAME_REGEX = /^[a-zA-Z0-9_\-]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 function RegistrationPage({
   userPublicKey,
